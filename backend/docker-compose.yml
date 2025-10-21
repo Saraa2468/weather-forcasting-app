@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: weather-backend
+    ports:
+      - "5000:5000"
+    depends_on: 
+      - redis
+    environment:
+      - REDIS_HOST= redis
+  redis:
+    image: redis:alpine
+    container_name: weather-redis
+    ports:
+      - "6379:6379"
