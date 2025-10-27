@@ -1,11 +1,26 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'weather-app:jenkins'       
+        DIND_SERVER = 'tcp://dind:2375'         
+    }
+
     stages {
+        stage('Checkout Code') {
+            steps {
+                
+                checkout scm
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t weather-app:jenkins .'
+                    
+                    docker.withServer(DIND_SERVER) {
+                        docker.build(IMAGE_NAME)
+                    }
                 }
             }
         }
@@ -13,7 +28,12 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'python test.py'
+                    
+                    docker.withServer(DIND_SERVER) {
+                        docker.image(IMAGE_NAME).inside {
+                            sh 'python test.py'
+                        }
+                    }
                 }
             }
         }
@@ -21,9 +41,32 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh 'helm upgrade --install weather-app ./weather-chart'
+                    
+                    sh 'kubectl apply -f k8s/deployment.yaml'
+                    sh 'kubectl apply -f k8s/service.yaml'
                 }
             }
         }
     }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully ✅'
+        }
+        failure {
+            echo 'Pipeline failed ❌'
+        }
+    }
 }
+stage ('Check Files') {
+    steps {
+        script {
+            docker.image(IMAGE_NAME).inside {
+                sh 'pwd'
+                sh 'ls-la'
+            }
+        }
+    }
+}
+
+                
